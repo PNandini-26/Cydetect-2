@@ -1,0 +1,10 @@
+Flask
+joblib
+pandas
+numpy
+matplotlib
+mysql-connector-python
+scikit-learn
+xgboost
+gunicorn
+python-dotenv

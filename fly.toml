@@ -1,0 +1,18 @@
+app = "cydetect"
+
+[build]
+  image = "your-docker-image"  # Remove this line if not using Docker
+
+[env]
+  PORT = "8080"  # Set your preferred port
+
+[experimental]
+  auto_rollback = true
+
+[[services]]
+  internal_port = 8080  # Use the same port as above
+  protocol = "tcp"
+
+  [[services.ports]]
+    handlers = ["http"]
+    port = 80
