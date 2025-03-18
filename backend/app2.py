@@ -9,6 +9,8 @@ import logging
 import mysql.connector
 from mysql.connector import Error
 import os
+import random
+
 
 # Get the root directory of the project
 ROOT_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -80,6 +82,32 @@ def prediction():
         flash('Please log in or register to access this feature.')
         return redirect(url_for('login'))
     return render_template('prediction.html')
+
+@app.route('/predict', methods=['POST'])
+def predict():
+    try:
+        data = request.get_json()
+        tweet_text = data.get("tweet_text", "")
+
+        if not tweet_text.strip():
+            return jsonify({"error": "Please enter a valid text"}), 400
+
+        # Transform input text using TF-IDF vectorizer
+        input_features = cyberbullying_tfidf.transform([tweet_text])
+
+        # Make prediction using trained model
+        prediction = cyberbullying_model.predict(input_features)
+
+        # Define class labels (Modify if your labels are different)
+        prediction_classes = ["Cyberbullying", "Non-Cyberbullying", "Hate Speech", "Spam","Gender"]
+        predicted_label = prediction_classes[int(prediction[0])]  # Convert numerical label to string
+
+        return jsonify({"prediction": predicted_label})
+
+    except Exception as e:
+        print(f"❌ Error: {e}")
+        return jsonify({"error": "Something went wrong. Please try again!"}), 500
+
 
 @app.route('/analyze', methods=['GET', 'POST'])
 def analyze():
@@ -170,64 +198,54 @@ def services():
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
-        email = request.form.get('email')  # Using .get() to avoid KeyError
-        password = request.form.get('password')
-
-        if not email or not password:
-            flash('Please fill in all fields!', 'danger')
-            return redirect(url_for('login'))
-
+        username = request.form['username']
+        password = request.form['password']
+        
         try:
             conn = mysql.connector.connect(**DB_CONFIG)
             cursor = conn.cursor(dictionary=True)
-            cursor.execute('SELECT id, password FROM users WHERE email = %s', (email,))
+            cursor.execute('SELECT id, password FROM users WHERE username = %s', (username,))
             user = cursor.fetchone()
             cursor.close()
             conn.close()
-
+            
             if user and user['password'] == password:
                 session['user_id'] = user['id']
-                flash('Login successful!', 'success')
+                flash('Login successful!')
                 return redirect(url_for('home'))
             else:
-                flash('Invalid email or password', 'danger')
+                flash('Invalid username or password')
                 return redirect(url_for('login'))
         except Error as e:
-            flash(f'Error: {e}', 'danger')
+            flash(f'Error: {e}')
             return redirect(url_for('login'))
-
     return render_template('login.html')
 
 @app.route('/register', methods=['GET', 'POST'])
 def register():
     if request.method == 'POST':
-        name = request.form.get('name')
-        email = request.form.get('email')
-        password = request.form.get('password')
-
-        if not name or not email or not password:
-            flash('All fields are required!', 'danger')
-            return redirect(url_for('register'))
-
+        username = request.form['username']
+        password = request.form['password']
+        email = request.form['email']
+        
         try:
             conn = mysql.connector.connect(**DB_CONFIG)
             cursor = conn.cursor()
-            cursor.execute('INSERT INTO users (name, email, password) VALUES (%s, %s, %s)', (name, email, password))
+            cursor.execute('INSERT INTO users (username, password, email) VALUES (%s, %s, %s)', (username, password, email))
             conn.commit()
             cursor.close()
             conn.close()
-            flash('Registration successful! Please log in.', 'success')
+            flash('Registration successful! Please log in.')
             return redirect(url_for('login'))
         except Error as e:
-            flash(str(e), 'danger')
+            flash(str(e))
             return render_template('register.html')
-
     return render_template('register.html')
 
 @app.route('/logout')
 def logout():
     session.pop('user_id', None)
-    flash('You have been logged out.', 'info')
+    flash('You have been logged out.')
     return redirect(url_for('home'))
 
 @app.route('/history')
@@ -252,4 +270,4 @@ def history():
 
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run(debug=True) 
